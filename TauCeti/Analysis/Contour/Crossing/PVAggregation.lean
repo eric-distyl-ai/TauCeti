@@ -66,7 +66,7 @@ open scoped Fin.NatCast
 
 /-- The truncated integrand is eventually interval-integrable on a crossing window lying in
 `[a, b]`, by restriction. -/
-private theorem eventually_intervalIntegrable_truncated_window {γ : ℝ → ℂ} {s : ℂ}
+theorem eventually_intervalIntegrable_truncated_window {γ : ℝ → ℂ} {s : ℂ}
     {g : ℂ → ℂ} {a b r t : ℝ} (hab : a ≤ b) (h_lo : a ≤ t - r) (h_hi : t + r ≤ b)
     (hr_nonneg : 0 ≤ r) (h_int_tr : ∀ ε : ℝ, 0 < ε →
       IntervalIntegrable (fun u => if ‖γ u - s‖ > ε then g (γ u) * deriv γ u else 0)
@@ -82,7 +82,7 @@ private theorem eventually_intervalIntegrable_truncated_window {γ : ℝ → ℂ
 /-- The between-piece principal value on a subinterval of `[a, b]` keeping distance `≥ m` from
 `s`: the plain integral, with the truncated integrability restricted from `[a, b]`. Both public
 aggregations discharge their piece hypothesis through this. -/
-private theorem hasCauchyPVAt_plain_piece {γ : ℝ → ℂ} {s : ℂ} {g : ℂ → ℂ} {a b m : ℝ}
+theorem hasCauchyPVAt_plain_piece {γ : ℝ → ℂ} {s : ℂ} {g : ℂ → ℂ} {a b m : ℝ}
     (hab : a ≤ b) (hm_pos : 0 < m) (h_int_tr : ∀ ε : ℝ, 0 < ε →
       IntervalIntegrable (fun t => if ‖γ t - s‖ > ε then g (γ t) * deriv γ t else 0)
         MeasureTheory.volume a b)
@@ -97,16 +97,31 @@ private theorem hasCauchyPVAt_plain_piece {γ : ℝ → ℂ} {s : ℂ} {g : ℂ 
 
 /-- The aggregated value along a sorted crossing list: between-piece values `p` interleaved
 with window values `w`. -/
-private def windowPieceSum (r : ℝ) (p : ℝ → ℝ → ℂ) (w : ℝ → ℂ) (b : ℝ) :
+public def windowPieceSum (r : ℝ) (p : ℝ → ℝ → ℂ) (w : ℝ → ℂ) (b : ℝ) :
     List ℝ → ℝ → ℂ
   | [], a => p a b
   | t :: rest, a => p a (t - r) + w t + windowPieceSum r p w b rest (t + r)
+
+/-- `windowPieceSum`'s defining equation on the empty list, exposed as a named lemma: across a
+module boundary the recursive equation compiler's unfolding is not visible, so a consumer needing
+this equation (rather than only the theorems about `windowPieceSum` proved in this file) rewrites
+with this instead of unfolding the definition directly. -/
+@[simp] theorem windowPieceSum_nil (r : ℝ) (p : ℝ → ℝ → ℂ) (w : ℝ → ℂ) (b a : ℝ) :
+    windowPieceSum r p w b [] a = p a b := by
+  simp [windowPieceSum]
+
+/-- `windowPieceSum`'s defining equation on a nonempty list, exposed as a named lemma for the same
+cross-module reason as `windowPieceSum_nil`. -/
+theorem windowPieceSum_cons (r : ℝ) (p : ℝ → ℝ → ℂ) (w : ℝ → ℂ) (b t a : ℝ) (rest : List ℝ) :
+    windowPieceSum r p w b (t :: rest) a
+      = p a (t - r) + w t + windowPieceSum r p w b rest (t + r) := by
+  simp [windowPieceSum]
 
 /-- **The shared aggregation induction**: with windows of disjoint interiors lying in `[a, b]`,
 window principal values `w t`, and between-piece principal values `p l u` available on
 intervals where the curve keeps distance `≥ m` from `s`, the principal value on `[a, b]` is
 the interleaved sum `windowPieceSum`. Both public aggregation theorems instantiate this. -/
-private theorem hasCauchyPVAt_along_sorted {γ : ℝ → ℂ} {s : ℂ} {g : ℂ → ℂ}
+theorem hasCauchyPVAt_along_sorted {γ : ℝ → ℂ} {s : ℂ} {g : ℂ → ℂ}
     {p : ℝ → ℝ → ℂ} {w : ℝ → ℂ} {A b r m : ℝ}
     (h_piece : ∀ l u : ℝ, A ≤ l → l ≤ u → u ≤ b → (∀ t ∈ Icc l u, m ≤ ‖γ t - s‖) →
       HasCauchyPVAt γ l u g s (p l u)) :
