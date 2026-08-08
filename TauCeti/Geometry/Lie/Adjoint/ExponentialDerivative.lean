@@ -5,12 +5,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 module
 
 public import TauCeti.Geometry.Lie.Exponential.Variation
+public import TauCeti.Analysis.Normed.Algebra.OneSubExpNegDivSelf.Integral
 
 /-!
 # The differential of the Lie-group exponential
 
 This file computes the differential of the tangent-space Lie-group exponential after translating
-its value back to the identity. The result is the integral of the adjoint orbit.
+its value back to the identity. The result is first expressed as the integral of the adjoint orbit,
+then as the everywhere-defined filled quotient `(1 - exp (-ad X)) / ad X`.
 
 This advances Deliverable A, Layer 1 of
 `TauCetiRoadmap/RepresentationTheory/LieGroups/README.md`.
@@ -24,6 +26,8 @@ This advances Deliverable A, Layer 1 of
 
 * `TauCeti.Lie.tangentLieExpLeftTrivializedFDeriv_apply_eq_integral`: the pointwise integral
   formula for the left-trivialized differential.
+* `TauCeti.Lie.mfderiv_mulInvariantExp_eq_left_comp_oneSubExpNegDivSelf`: the arbitrary-point
+  derivative formula for the tangent-space exponential.
 
 ## References
 
@@ -209,6 +213,112 @@ theorem tangentLieExpLeftTrivializedFDeriv_apply_eq_integral
       (mulInvariantExp (I := I) (G := G) ((-s) • X)) Y))
   rw [← q.intervalIntegral_comp_comm hint]
   exact hscalar'
+
+/-- The left-trivialized differential of the tangent-space exponential is the filled
+exponential quotient of the tangent adjoint operator. -/
+theorem tangentLieExpLeftTrivializedFDeriv_apply_eq_oneSubExpNegDivSelf
+    (X Y : GroupLieAlgebra I G) :
+    tangentLieExpLeftTrivializedFDeriv (I := I) (G := G) X (@id E Y) =
+      oneSubExpNegDivSelf ℝ (tangentAdContinuousLinearMap (I := I) X) (@id E Y) := by
+  rw [tangentLieExpLeftTrivializedFDeriv_apply_eq_integral,
+    oneSubExpNegDivSelf_eq_integral_exp]
+  let _ : NormedAlgebra ℚ (E →L[ℝ] E) :=
+    NormedAlgebra.restrictScalars ℚ ℝ _
+  let A := tangentAdContinuousLinearMap (I := I) X
+  have hint : IntervalIntegrable
+      (fun s : ℝ => NormedSpace.exp (s • (-A))) volume 0 1 :=
+    Continuous.intervalIntegrable (μ := volume) (by fun_prop) 0 1
+  rw [ContinuousLinearMap.intervalIntegral_apply (μ := volume) hint (@id E Y)]
+  apply intervalIntegral.integral_congr
+  intro s _hs
+  have hscale :
+      tangentAdContinuousLinearMap (I := I) ((-s) • X) = s • (-A) := by
+    rw [tangentAdContinuousLinearMap_smul]
+    dsimp only [A]
+    simp only [neg_smul, smul_neg]
+  have htangent := tangentAd_mulInvariantExp_apply
+    (I := I) (G := G) ((-s) • X) Y
+  have hexp := congrArg (fun B : E →L[ℝ] E => B (@id E Y))
+    (congrArg NormedSpace.exp hscale)
+  with_unfolding_all exact htangent.trans hexp
+
+/-- The differential of the tangent-space exponential at an arbitrary point is left translation
+of the filled tangent-adjoint quotient. -/
+theorem mfderiv_mulInvariantExp_eq_left_comp_oneSubExpNegDivSelf
+    (X : GroupLieAlgebra I G) :
+    mfderiv 𝓘(ℝ, E) I
+        (fun v : E => mulInvariantExp (I := I) (G := G)
+          (show GroupLieAlgebra I G from v)) (@id E X) =
+      (show E →L[ℝ] E from mfderiv I I
+        (fun g : G => mulInvariantExp (I := I) (G := G) X * g) 1).comp
+        (oneSubExpNegDivSelf ℝ (tangentAdContinuousLinearMap (I := I) X)) := by
+  let Exp : E → G := fun v => mulInvariantExp (I := I) (G := G)
+    (show GroupLieAlgebra I G from v)
+  let Lneg : G → G := fun g => mulInvariantExp (I := I) (G := G) (-X) * g
+  let Lpos : G → G := fun g => mulInvariantExp (I := I) (G := G) X * g
+  have hExp : MDiffAt Exp (@id E X) :=
+    (contMDiff_mulInvariantExp (I := I) (G := G)).mdifferentiable
+      (by simp) (@id E X)
+  have hLneg : MDifferentiable I I Lneg := by
+    simpa only [Lneg] using
+      (contMDiff_mul_left (I := I) (n := ∞)
+        (a := mulInvariantExp (I := I) (G := G) (-X))).mdifferentiable (by simp)
+  have hLpos : MDifferentiable I I Lpos := by
+    simpa only [Lpos] using
+      (contMDiff_mul_left (I := I) (n := ∞)
+        (a := mulInvariantExp (I := I) (G := G) X)).mdifferentiable (by simp)
+  have hExpAt : Exp (@id E X) = mulInvariantExp (I := I) (G := G) X := by
+    with_unfolding_all rfl
+  have hbase : (Lneg ∘ Exp) (@id E X) = 1 := by
+    rw [Function.comp_apply, hExpAt]
+    simp only [Lneg]
+    rw [mulInvariantExp_neg, inv_mul_cancel]
+  have hfun : Lpos ∘ Lneg ∘ Exp = Exp := by
+    funext v
+    simp only [Function.comp_apply, Lpos, Lneg]
+    rw [mulInvariantExp_neg, ← mul_assoc, mul_inv_cancel, one_mul]
+  let dExp : E →L[ℝ] E :=
+    mfderiv 𝓘(ℝ, E) I Exp (@id E X)
+  let dNegExp : E →L[ℝ] E :=
+    mfderiv 𝓘(ℝ, E) I (Lneg ∘ Exp) (@id E X)
+  let dComp : E →L[ℝ] E :=
+    mfderiv 𝓘(ℝ, E) I (Lpos ∘ Lneg ∘ Exp) (@id E X)
+  let dLpos : E →L[ℝ] E := mfderiv I I Lpos 1
+  let dLneg : E →L[ℝ] E :=
+    mfderiv I I Lneg (mulInvariantExp (I := I) (G := G) X)
+  have hdComp : dExp = dComp := by
+    dsimp only [dExp, dComp]
+    exact (mfderiv_congr (I := 𝓘(ℝ, E)) (I' := I) hfun).symm
+  have hdLpos : dComp = dLpos.comp dNegExp := by
+    dsimp only [dComp, dLpos, dNegExp]
+    rw [← hbase]
+    exact mfderiv_comp (@id E X)
+      (hLpos ((Lneg ∘ Exp) (@id E X)))
+      ((hLneg (Exp (@id E X))).comp (@id E X) hExp)
+  have hdLneg : dNegExp = dLneg.comp dExp := by
+    dsimp only [dNegExp, dLneg, dExp]
+    rw [mfderiv_comp (@id E X) (hLneg (Exp (@id E X))) hExp, hExpAt]
+    rfl
+  have hdTrivialized :
+      dLneg.comp dExp =
+        tangentLieExpLeftTrivializedFDeriv (I := I) (G := G) X := by
+    rfl
+  change dExp = dLpos.comp
+    (oneSubExpNegDivSelf ℝ (tangentAdContinuousLinearMap (I := I) X))
+  calc
+    dExp = dComp := hdComp
+    _ = dLpos.comp dNegExp := hdLpos
+    _ = dLpos.comp (dLneg.comp dExp) := by rw [hdLneg]
+    _ = dLpos.comp
+        (tangentLieExpLeftTrivializedFDeriv (I := I) (G := G) X) := by
+      rw [hdTrivialized]
+    _ = dLpos.comp
+        (oneSubExpNegDivSelf ℝ (tangentAdContinuousLinearMap (I := I) X)) := by
+      congr 1
+      apply ContinuousLinearMap.ext
+      intro Y
+      exact tangentLieExpLeftTrivializedFDeriv_apply_eq_oneSubExpNegDivSelf
+        (I := I) (G := G) X (@id (GroupLieAlgebra I G) Y)
 
 end TauCeti.Lie
 
