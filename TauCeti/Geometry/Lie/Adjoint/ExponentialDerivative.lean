@@ -28,6 +28,8 @@ This advances Deliverable A, Layer 1 of
   formula for the left-trivialized differential.
 * `TauCeti.Lie.mfderiv_mulInvariantExp_eq_left_comp_oneSubExpNegDivSelf`: the arbitrary-point
   derivative formula for the tangent-space exponential.
+* `TauCeti.Lie.mfderiv_lieExp_eq_left_comp_oneSubExpNegDivSelf`: the roadmap-facing derivative
+  formula for the derivation-based Lie-group exponential.
 
 ## References
 
@@ -319,6 +321,140 @@ theorem mfderiv_mulInvariantExp_eq_left_comp_oneSubExpNegDivSelf
       intro Y
       exact tangentLieExpLeftTrivializedFDeriv_apply_eq_oneSubExpNegDivSelf
         (I := I) (G := G) X (@id (GroupLieAlgebra I G) Y)
+
+/-- The canonical derivation–tangent equivalence intertwines the filled quotients of the two
+continuous realizations of the infinitesimal adjoint. -/
+theorem oneSubExpNegDivSelf_adContinuousLinearMap_intertwine
+    (X : LeftInvariantDerivation I G) :
+    let eIso := leftInvariantDerivationLinearIsometryEquivModelVectorSpace
+      (I := I) (G := G)
+    let eLie := leftInvariantDerivationLieEquivGroupLieAlgebra
+      (I := I) (G := G) BoundarylessManifold.isInteriorPoint
+    (oneSubExpNegDivSelf ℝ (tangentAdContinuousLinearMap (I := I) (eLie X))).comp
+        eIso.toContinuousLinearEquiv.toContinuousLinearMap =
+      eIso.toContinuousLinearEquiv.toContinuousLinearMap.comp
+        (oneSubExpNegDivSelf ℝ (adContinuousLinearMap (I := I) X)) := by
+  dsimp only
+  let _ : FiniteDimensional ℝ (LeftInvariantDerivation I G) :=
+    finiteDimensional_leftInvariantDerivation
+      (I := I) (G := G) BoundarylessManifold.isInteriorPoint
+  let _ : CompleteSpace (LeftInvariantDerivation I G) :=
+    FiniteDimensional.complete ℝ (LeftInvariantDerivation I G)
+  let eIso := leftInvariantDerivationLinearIsometryEquivModelVectorSpace
+    (I := I) (G := G)
+  let eLie := leftInvariantDerivationLieEquivGroupLieAlgebra
+    (I := I) (G := G) BoundarylessManifold.isInteriorPoint
+  let c := eIso.toContinuousLinearEquiv.conjContinuousAlgEquiv
+  have hc : c (adContinuousLinearMap (I := I) X) =
+      tangentAdContinuousLinearMap (I := I) (eLie X) := by
+    simpa only [c, eIso, eLie] using
+      conjContinuousAlgEquiv_adContinuousLinearMap (I := I) (G := G) X
+  have hmap := c.toContinuousAlgHom.map_oneSubExpNegDivSelf
+    (adContinuousLinearMap (I := I) X)
+  change c (oneSubExpNegDivSelf ℝ (adContinuousLinearMap (I := I) X)) =
+    oneSubExpNegDivSelf ℝ (c (adContinuousLinearMap (I := I) X)) at hmap
+  rw [hc] at hmap
+  apply ContinuousLinearMap.ext
+  intro Y
+  change oneSubExpNegDivSelf ℝ (tangentAdContinuousLinearMap (I := I) (eLie X))
+      (eIso Y) =
+    eIso (oneSubExpNegDivSelf ℝ (adContinuousLinearMap (I := I) X) Y)
+  have happ := congrArg (fun A : E →L[ℝ] E => A (eIso Y)) hmap
+  have hinv : eIso.toContinuousLinearEquiv.symm (eIso Y) = Y :=
+    eIso.toContinuousLinearEquiv.symm_apply_apply Y
+  simpa only [ContinuousLinearMap.comp_apply, c,
+    ContinuousLinearEquiv.conjContinuousAlgEquiv_apply_apply,
+    LinearIsometryEquiv.coe_toContinuousLinearEquiv, hinv] using happ.symm
+
+/-- At an arbitrary Lie-algebra element, the differential of the Lie-group exponential is left
+translation of the everywhere-defined filled quotient of the infinitesimal adjoint. -/
+theorem mfderiv_lieExp_eq_left_comp_oneSubExpNegDivSelf
+    (X : LeftInvariantDerivation I G) :
+    let eIso := leftInvariantDerivationLinearIsometryEquivModelVectorSpace
+      (I := I) (G := G)
+    (show LeftInvariantDerivation I G →L[ℝ] E from
+      mfderiv 𝓘(ℝ, LeftInvariantDerivation I G) I lieExp X) =
+      (show E →L[ℝ] E from
+        mfderiv I I (fun g : G => lieExp X * g) 1).comp
+        (eIso.toContinuousLinearEquiv.toContinuousLinearMap.comp
+          (oneSubExpNegDivSelf ℝ (adContinuousLinearMap (I := I) X))) := by
+  dsimp only
+  let _ : FiniteDimensional ℝ (LeftInvariantDerivation I G) :=
+    finiteDimensional_leftInvariantDerivation
+      (I := I) (G := G) BoundarylessManifold.isInteriorPoint
+  let _ : CompleteSpace (LeftInvariantDerivation I G) :=
+    FiniteDimensional.complete ℝ (LeftInvariantDerivation I G)
+  let eIso := leftInvariantDerivationLinearIsometryEquivModelVectorSpace
+    (I := I) (G := G)
+  let eLie := leftInvariantDerivationLieEquivGroupLieAlgebra
+    (I := I) (G := G) BoundarylessManifold.isInteriorPoint
+  let Exp : E → G := fun v => mulInvariantExp (I := I) (G := G)
+    (show GroupLieAlgebra I G from v)
+  have hfun : lieExp (I := I) (G := G) = Exp ∘ eIso := by
+    funext Y
+    rw [lieExp_eq_mulInvariantExp]
+    simp only [Exp, Function.comp_apply, eIso,
+      leftInvariantDerivationLinearIsometryEquivModelVectorSpace_apply]
+  have heIsoApply (Y : LeftInvariantDerivation I G) :
+      eIso Y = @id E (eLie Y) := by
+    simp only [eIso, eLie,
+      leftInvariantDerivationLinearIsometryEquivModelVectorSpace_apply,
+      leftInvariantDerivationLieEquivGroupLieAlgebra_apply]
+    rfl
+  have hExp : MDiffAt Exp (eIso X) :=
+    (contMDiff_mulInvariantExp (I := I) (G := G)).mdifferentiable
+      (by simp) (eIso X)
+  have heIso : MDifferentiableAt
+      𝓘(ℝ, LeftInvariantDerivation I G) 𝓘(ℝ, E) eIso X :=
+    eIso.toContinuousLinearEquiv.hasFDerivAt.differentiableAt.mdifferentiableAt
+  let eCLM : LeftInvariantDerivation I G →L[ℝ] E :=
+    eIso.toContinuousLinearEquiv.toContinuousLinearMap
+  let deIso : LeftInvariantDerivation I G →L[ℝ] E :=
+    mfderiv 𝓘(ℝ, LeftInvariantDerivation I G) 𝓘(ℝ, E) eIso X
+  have heIsoDeriv : deIso = eCLM := by
+    dsimp only [deIso, eCLM]
+    rw [mfderiv_eq_fderiv]
+    exact eIso.toContinuousLinearEquiv.hasFDerivAt.fderiv
+  let dLie : LeftInvariantDerivation I G →L[ℝ] E :=
+    mfderiv 𝓘(ℝ, LeftInvariantDerivation I G) I lieExp X
+  let dComp : LeftInvariantDerivation I G →L[ℝ] E :=
+    mfderiv 𝓘(ℝ, LeftInvariantDerivation I G) I (Exp ∘ eIso) X
+  let dExp : E →L[ℝ] E :=
+    mfderiv 𝓘(ℝ, E) I Exp (eIso X)
+  let dL : E →L[ℝ] E := mfderiv I I (fun g : G => lieExp X * g) 1
+  let Rtan : E →L[ℝ] E :=
+    oneSubExpNegDivSelf ℝ (tangentAdContinuousLinearMap (I := I) (eLie X))
+  let Rad : LeftInvariantDerivation I G →L[ℝ] LeftInvariantDerivation I G :=
+    oneSubExpNegDivSelf ℝ (adContinuousLinearMap (I := I) X)
+  have hfunDeriv : dLie = dComp := by
+    dsimp only [dLie, dComp]
+    exact mfderiv_congr
+      (I := 𝓘(ℝ, LeftInvariantDerivation I G)) (I' := I) hfun
+  have hcompDeriv : dComp = dExp.comp deIso := by
+    dsimp only [dComp, dExp, deIso]
+    exact mfderiv_comp X hExp heIso
+  have hchain : dLie = dExp.comp eCLM := by
+    calc
+      dLie = dComp := hfunDeriv
+      _ = dExp.comp deIso := hcompDeriv
+      _ = dExp.comp eCLM := by rw [heIsoDeriv]
+  have hgroup : lieExp X = mulInvariantExp (I := I) (G := G) (eLie X) := by
+    rw [lieExp_eq_mulInvariantExp]
+    simp only [eLie, leftInvariantDerivationLieEquivGroupLieAlgebra_apply]
+  have htangent : dExp = dL.comp Rtan := by
+    dsimp only [dExp, dL, Rtan]
+    rw [heIsoApply, hgroup]
+    exact mfderiv_mulInvariantExp_eq_left_comp_oneSubExpNegDivSelf
+      (I := I) (G := G) (eLie X)
+  have hintertwine : Rtan.comp eCLM = eCLM.comp Rad := by
+    simpa only [Rtan, eCLM, Rad, eIso, eLie] using
+      oneSubExpNegDivSelf_adContinuousLinearMap_intertwine (I := I) (G := G) X
+  change dLie = dL.comp (eCLM.comp Rad)
+  calc
+    dLie = dExp.comp eCLM := hchain
+    _ = (dL.comp Rtan).comp eCLM := by rw [htangent]
+    _ = dL.comp (Rtan.comp eCLM) := rfl
+    _ = dL.comp (eCLM.comp Rad) := by rw [hintertwine]
 
 end TauCeti.Lie
 
